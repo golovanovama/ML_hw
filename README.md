@@ -7,82 +7,111 @@ import numpy as np
 
 # Load tab separated HW-1.TPM.tsv.gz file, and create a data frame 
 # hint: read_csv with sep
+
 df = pd.read_csv('/content/HW-1.TPM.tsv.gz',sep='\t')
 
 # Show the first 5 rows
+
 df.head()
+
 # Before continuing, we also need to check that the numeric columns have been parsed correctly and that we don't have any missing values.
 # Check that we don't have missing values
 # hint: isna with sum
+
 totalna = df.isna().sum()
 print("Total NA cells: ", totalna)
 
 # Assert that its actually 0 and provide some message if it's not
+
 assert df.any != 'na', 'Total NA cells !=0'
+
 # The values ​​of the normalized expression in this dataset cannot be less than 0. Let's check if it's true:
 # Select numerical columns
 # hint: select_dtypes
+
 numcols = df.select_dtypes(include=np.number).columns
+
 # Assert that the total number of values < 0 is 0
+
 f=(df[numcols]<0).sum()
 assert f.sum() == 0, \
   "All RNA abundance estimates must be > 0"
+
   # Calculate non-zero quantiles for each expression column
+
 qthr = 0.01
 quantiles = []
 for col in df[numcols]:
   series = df[col]
+
   # Select non zero values
+
   series = series[series>0]
+
   # Calculate quantiles
+
   q = series.quantile(qthr)
   quantiles.append(q)
 
 # Print results
+
 for col, q in zip(numcols, quantiles):
   print(df[col].name,'<-',q)
 
   # assert that quantile is not zero
+
   assert q != 0, \
   f*quantile (df[col].name)
+
   # As a threshold we will use a min quantile
+
 threshold = min(quantiles)
 
 print("Genes before", df.shape[0])
 
 # We will drop all columns, 
 # where the expression is below the threshold in all samples
+
 mask = (df[numcols] >= threshold).any(axis=1)
 df = df[mask]
 
 print("Genes after", df.shape[0])
+
 # Let's check the genes with the total maximum expression in all samples:
+
 overallexpr = df[numcols].sum(axis=1)
 
 # New trick:
 ## sort by index
+
 argsort = overallexpr.argsort()
-## select top 25 elements
+
 index = argsort[-15:]
 
 # Print selected genes
 # hint: use iloc for indexing using row ids
+
 df.iloc[index]
+
 # It is a well-known observation that PCA decomposition of expression profiles should group samples according to their origin. In our case, we expect to observe two clusters - KO and WT cells.
 # The closer the samples are to each other on the PCA plot, the better. However, we are fine as long as the samples can be separated by a straight line.
 
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-# Select expression columns 
+# Select expression columns
+
 data = df[numcols]
 # Transpose the matrix to treat genes as features
+
 data = data.transpose()
+
 # Transform to zero mean and unit variance
 data = StandardScaler().fit_transform(data)
 
 # first thing is to calculate the PCA decomposition
 # hint: don't forget the random state & request 2 components to make a 2D plot
+
 pca = PCA(random_state=32, n_components=2).fit_transform(data)
 
 samples, coords = pca.shape
@@ -102,6 +131,7 @@ for (x, y), col in zip(pca, numcols):
   ax.scatter(x, y, color=color)
 
 fig.show()
+
 palette = {"WT": "#1F77B4", "ADAR1-KO": "#D62728"}
 
 # Create a basic draft
@@ -122,27 +152,32 @@ for (x, y), col in zip(pca, numcols):
 
 #fig.show()
 # We can make a more formal version using the distance matrix (calculated over expression values).
+
 import numpy as np
 import matplotlib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 # Calculate the spearman correlation
+
 p_data=df[numcols]
 corr = p_data.corr(method='spearman')
 corr = 1 - corr
 
-
 fig, ax = plt.subplots() # same as figure + .gca()
 
 # cmap - mapping between values and colors
+
 cmap = cmap=plt.get_cmap('hot')
+
 # imshow = image show (yes, we treat the matrix as a picture)
+
 im = ax.imshow(corr, cmap=cmap)
 
 loc, labels = np.arange(len(numcols)), list(numcols)
 
 # Create ticks
+
 ax.set_xticks(loc)
 ax.set_xticklabels(labels, rotation=45, ha="right", rotation_mode="anchor")
 
@@ -173,11 +208,13 @@ ax.set_title("Expr.correlation", loc='left',fontweight="bold")
 fig.colorbar(im, ax=ax)
 
 fig.show()
+
 # Let's have a look at binned distribution of genes expression:
 fig, ax = plt.subplots()
 
 # Let's ignore the highly expressed genes - 
 # it makes no sense to bin them, since there are only a few of them.
+
 upthr = df[numcols].quantile(0.98).max()
 
 # Create 200 bins ranging from 0 to upthr
@@ -203,6 +240,7 @@ for genotype in "WT", "ADAR1-KO":
   
   # Turn list of 1D arrays into dense 2D array
   counts = np.asarray(counts)
+
   # Calculate stats for each bin
   meanv, minv, maxv = counts.mean(axis=0), counts.min(axis=0), counts.max(axis=0)
 
@@ -211,12 +249,15 @@ for genotype in "WT", "ADAR1-KO":
 
   # Plot the mean trend
   ax.plot(X,meanv)
+
   # Shade betweenmin and max
   ax.fill_between(X,minv,maxv, color=color, alpha=0.25)
 
 ax.set(yscale='log')
 # Now your task is to use all your skills and embellish this plot just like we did with the PCA figure. For example, be sure to include the legend, title, grid, and axis labels.
+
 from matplotlib.pyplot import title,xlabel,ylabel
+
 fig, ax = plt.subplots()
 upthr = df[numcols].quantile(0.98).max()
 
@@ -236,6 +277,7 @@ for genotype, color_line in zip(["WT", "ADAR1-KO"],['green','red']):
   meanv, minv, maxv = counts.mean(axis=0), counts.min(axis=0), counts.max(axis=0)
 
   ax.plot(X,meanv,color=color_line)
+
   # Shade betweenmin and max
   ax.fill_between(X,minv,maxv, color='dark' + color_line, alpha=0.25)
   
@@ -245,11 +287,14 @@ for genotype, color_line in zip(["WT", "ADAR1-KO"],['green','red']):
   ax.grid()
 
 ax.set(yscale='log')
+
 # Now let's visualize the expression of top N genes. First - let's get the data:
 # As before, we will select genes based on their overall expression
+
 sumexpr = data.sum(axis=0).argsort()
 
 topn = 250
+
 # select indices of topn genes with max expression
 ind = sumexpr[-topn:]
 
@@ -264,6 +309,7 @@ cluster = expr.transpose()
 
 # Disable x axis labels
 # hint: cluster.ax_heatmap is a simple matplotlib axis instance
+
 map=sns.clustermap(cluster, yticklabels=False)
 map.fig.suptitle('Expression of top 250 genes', fontsize=15,fontweight='bold')
 ```
@@ -280,6 +326,7 @@ HW #2
 
 !wget http://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/bigBedToBed
 !chmod a+x bigBedToBed
+
 # конверируем файлы в нужный формат
 for file in "A549-1","A549-2", "Chip-seq1", "Chip-seq2", "Chip-seq3":
   !./bigBedToBed "{file}.bigBed" "{file}.bed"
@@ -288,6 +335,7 @@ for file in "A549-1","A549-2", "Chip-seq1", "Chip-seq2", "Chip-seq3":
 !pip3 install pybedtools
 
 from pybedtools import BedTool
+
 #чтобы дальше было удобнее работать
 ATACseq1 = BedTool("A549-1.bed").sort()
 ATACseq2 = BedTool("A549-2.bed").sort()
@@ -310,10 +358,12 @@ assert ATAC.intersect(atac_not_replicated).total_coverage() == 0
 chip1 = chip1.subtract(atac_not_replicated).sort()
 chip2 = chip2.subtract(atac_not_replicated).sort()
 chip3 = chip3.subtract(atac_not_replicated).sort()
+
 # -wa means "keep a whole A549 peak in case of an overlap with ATAC-seq"
 fg1 = chip1.intersect(ATAC, wa=True, u=True).sort()
 fg2 = chip2.intersect(ATAC, wa=True, u=True).sort()
 fg3 = chip3.intersect(ATAC, wa=True, u=True).sort()
+
 # -A means "remove entire ATAC peaks overlapping ATAC-seq peak"
 bg1 = ATAC.subtract(chip1, A=True).sort()
 bg2 = ATAC.subtract(chip2, A=True).sort()
